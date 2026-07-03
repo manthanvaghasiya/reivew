@@ -21,8 +21,11 @@ export type FeedbackType =
 
 export type Business = {
   id: string;
-  owner_user_id: string;
+  owner_id: string;
   name: string;
+  industry: string;
+  google_review_url: string;
+  ai_keywords: string | null;
   created_at: string;
 };
 
@@ -54,8 +57,11 @@ export type FeedbackEvent = {
 /* ------------------------------------------------------------------ */
 
 export type BusinessInsert = {
-  owner_user_id: string;
+  owner_id: string;
   name: string;
+  industry?: string;
+  google_review_url?: string;
+  ai_keywords?: string | null;
 };
 
 export type LocationInsert = {
@@ -88,8 +94,8 @@ export type Database = {
         Update: Partial<BusinessInsert>;
         Relationships: [
           {
-            foreignKeyName: "businesses_owner_user_id_fkey";
-            columns: ["owner_user_id"];
+            foreignKeyName: "businesses_owner_id_fkey";
+            columns: ["owner_id"];
             isOneToOne: false;
             referencedRelation: "users";
             referencedColumns: ["id"];
@@ -136,6 +142,31 @@ export type Database = {
             referencedRelation: "locations";
             referencedColumns: ["id"];
           },
+        ];
+      };
+      private_feedback: {
+        Row: {
+          id: string;
+          location_id: string;
+          message: string;
+          created_at: string;
+        };
+        Insert: {
+          location_id: string;
+          message: string;
+        };
+        Update: Partial<{
+          location_id: string;
+          message: string;
+        }>;
+        Relationships: [
+          {
+            foreignKeyName: "private_feedback_location_id_fkey";
+            columns: ["location_id"];
+            isOneToOne: false;
+            referencedRelation: "locations";
+            referencedColumns: ["id"];
+          }
         ];
       };
     };
