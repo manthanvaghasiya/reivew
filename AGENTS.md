@@ -1,5 +1,7 @@
-<!-- BEGIN:nextjs-agent-rules -->
-# This is NOT the Next.js you know
+# Available Sub-Agents
 
-This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` before writing any code. Heed deprecation notices.
-<!-- END:nextjs-agent-rules -->
+This project uses specific Claude Code sub-agents located in `/.claude/agents/` to handle specialized tasks.
+
+- **code-reviewer**: Invoke this agent to review diffs for TypeScript strictness, RLS/security issues, and strict compliance with the review-gating rules (no pre-written text, no gating logic).
+- **supabase-migration-agent**: Invoke this agent for writing or reviewing SQL migrations and RLS policies, ensuring adherence to the project's multi-tenant architecture.
+- **qa-tester**: Invoke this agent to manually walk through the public QR flow (e.g., `/app/r/[locationId]`), verifying that both good and bad paths function correctly and that both always provide the public review link.

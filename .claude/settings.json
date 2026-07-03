@@ -1,0 +1,14 @@
+{
+  "permissions": {
+    "supabase/migrations": {
+      "write": false,
+      "allowNew": true,
+      "requireConfirmation": true
+    }
+  },
+  "behavior": {
+    "defaultAgent": {
+      "askBeforeDestructive": true
+    }
+  }
+}

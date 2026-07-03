@@ -1,0 +1,10 @@
+#!/usr/bin/env bash
+echo "========================================="
+echo " Project: ReviewFlow"
+echo " Branch:  $(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo 'unknown')"
+echo "========================================="
+echo " HARD COMPLIANCE RULE REMINDER:"
+echo " Never pre-fill, template, or auto-select review text for a customer."
+echo " Never suppress the public review path for negative-leaning customers."
+echo " The public review link MUST be offered on both good and bad flows."
+echo "========================================="
