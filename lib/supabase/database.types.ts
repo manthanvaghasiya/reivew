@@ -42,6 +42,8 @@ export type Location = {
   address: string | null;
   phone: string | null;
   logo_url: string | null;
+  services: any[] | null;
+  keywords: string[] | null;
   created_at: string;
 };
 
@@ -94,6 +96,8 @@ export type LocationInsert = {
   address?: string | null;
   phone?: string | null;
   logo_url?: string | null;
+  services?: any[] | null;
+  keywords?: string[] | null;
 };
 
 export type QrScanInsert = {
