@@ -1,4 +1,4 @@
-import { logQrScan, getLocationById } from "@/lib/supabase/queries";
+import { logQrScan, getLocationById, getBusinessById } from "@/lib/supabase/queries";
 import { notFound } from "next/navigation";
 import ReviewFlowClient from "./ReviewFlowClient";
 
@@ -13,12 +13,12 @@ export default async function ReviewPage(props: {
     notFound();
   }
 
-  // Log scan server-side on load
-  try {
-    await logQrScan(locationId);
-  } catch (error) {
-    console.error("Failed to log QR scan:", error);
+  const business = await getBusinessById(location.business_id);
+  if (!business) {
+    notFound();
   }
+
+  // QR scan is now logged client-side to prevent Next.js prefetch false-positives
 
   return (
     <main className="flex min-h-screen flex-col items-center justify-center bg-gray-50 p-4">
@@ -28,6 +28,8 @@ export default async function ReviewPage(props: {
         businessName={location.name} 
         googleReviewLink={location.google_review_link} 
         brandColor={location.brand_color} 
+        flowMode={location.review_flow_mode as 'direct' | 'interactive' || 'direct'}
+        predefinedTags={business.predefined_tags}
       />
     </main>
   );

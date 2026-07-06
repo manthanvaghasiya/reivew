@@ -12,6 +12,15 @@ type Location = {
 export default function PublicScanFlow({ location }: { location: Location }) {
   const [step, setStep] = useState<"initial" | "good" | "bad">("initial");
   const [feedback, setFeedback] = useState("");
+  const [hoveredRating, setHoveredRating] = useState(0);
+
+  const handleStarClick = (rating: number) => {
+    if (rating >= 4) {
+      setStep("good");
+    } else {
+      setStep("bad");
+    }
+  };
 
   const brandColor = location.brand_color || "#2f6b4f";
 
@@ -23,19 +32,29 @@ export default function PublicScanFlow({ location }: { location: Location }) {
             How was your visit to <span style={{ color: brandColor }}>{location.name}</span>?
           </h1>
 
-          <div className="flex flex-col gap-4">
-            <button
-              onClick={() => setStep("good")}
-              className="flex items-center justify-center rounded-xl bg-gray-100 p-5 text-xl font-semibold text-gray-800 transition-colors hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-gray-300 shadow-sm"
-            >
-              <span className="mr-3 text-3xl">🙂</span> It was good
-            </button>
-            <button
-              onClick={() => setStep("bad")}
-              className="flex items-center justify-center rounded-xl bg-gray-100 p-5 text-xl font-semibold text-gray-800 transition-colors hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-gray-300 shadow-sm"
-            >
-              <span className="mr-3 text-3xl">😕</span> Not great
-            </button>
+          <div className="flex justify-center gap-2 mb-4">
+            {[1, 2, 3, 4, 5].map((star) => (
+              <button
+                key={star}
+                type="button"
+                className="focus:outline-none transition-transform hover:scale-110 active:scale-95"
+                onMouseEnter={() => setHoveredRating(star)}
+                onMouseLeave={() => setHoveredRating(0)}
+                onClick={() => handleStarClick(star)}
+                aria-label={`Rate ${star} stars`}
+              >
+                <svg
+                  className={`w-12 h-12 transition-colors ${
+                    star <= hoveredRating ? 'text-yellow-400' : 'text-gray-200'
+                  }`}
+                  fill="currentColor"
+                  viewBox="0 0 20 20"
+                  xmlns="http://www.w3.org/2000/svg"
+                >
+                  <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                </svg>
+              </button>
+            ))}
           </div>
         </div>
       </main>

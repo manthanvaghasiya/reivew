@@ -43,28 +43,33 @@ export default function QrCodeDisplay({ locationId }: QrCodeDisplayProps) {
 
   if (!dataUrl) {
     return (
-      <div className="flex flex-col items-center gap-4 p-6 bg-white/5 border border-white/10 rounded-2xl w-fit">
-        <div className="animate-pulse bg-gray-800 w-64 h-64 rounded-lg"></div>
-        <div className="animate-pulse bg-gray-800 h-4 w-48 rounded mt-2"></div>
-        <div className="animate-pulse bg-gray-800 h-10 w-36 rounded-lg mt-2"></div>
+      <div className="bg-white rounded-[1.5rem] p-5 w-full shadow-2xl animate-pulse">
+        <div className="w-full aspect-square bg-gray-200 rounded-lg"></div>
+        <div className="mt-4 w-full h-9 bg-gray-200 rounded-lg"></div>
+        <div className="mt-3 w-full h-11 bg-gray-200 rounded-[0.85rem]"></div>
       </div>
     );
   }
 
   return (
-    <div className="flex flex-col items-center gap-4 p-6 bg-white/5 border border-white/10 rounded-2xl w-fit">
+    <div className="bg-white rounded-[1.5rem] p-5 w-full shadow-2xl">
       <img 
         src={dataUrl} 
         alt={`QR Code for ${url}`} 
-        className="w-64 h-64 rounded-lg bg-white p-2" 
+        className="w-full aspect-square object-contain mx-auto rounded-xl shadow-sm border border-gray-100" 
       />
-      <p className="text-sm text-gray-400 font-mono text-center select-all px-2 py-1 bg-black/30 rounded w-full overflow-hidden text-ellipsis whitespace-nowrap">
-        {url}
-      </p>
+      <div className="mt-4">
+        <div className="w-full bg-[#f8f9fa] text-gray-500 text-[11px] text-center rounded-[10px] py-2.5 font-mono truncate px-4 border border-gray-100">
+          {url}
+        </div>
+      </div>
       <button 
         onClick={handleDownload}
-        className="mt-2 px-5 py-2.5 bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-white rounded-xl transition-all shadow-lg shadow-emerald-500/20 hover:shadow-emerald-500/40 font-semibold text-sm w-full focus:outline-none focus:ring-2 focus:ring-emerald-500"
+        className="group w-full mt-3 flex items-center justify-center gap-2 bg-[#10b981] hover:bg-[#059669] text-white font-bold rounded-[12px] py-3 text-[13px] transition-all hover:shadow-lg hover:-translate-y-0.5 focus:outline-none"
       >
+        <svg className="w-4 h-4 transition-transform group-hover:scale-110" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+        </svg>
         Download QR Code
       </button>
     </div>

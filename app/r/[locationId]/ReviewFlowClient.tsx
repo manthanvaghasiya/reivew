@@ -1,35 +1,43 @@
 "use client";
 
-import { useState } from "react";
-import { logFeedbackAction, generateReviewsAction, submitPrivateFeedbackAction } from "./actions";
+import { useState, useEffect, useRef } from "react";
+import { logFeedbackAction, generateReviewsAction, submitPrivateFeedbackAction, logQrScanAction } from "./actions";
 
 export default function ReviewFlowClient({ 
   locationId, 
   businessId,
   businessName, 
   googleReviewLink, 
-  brandColor 
+  brandColor,
+  predefinedTags = [],
+  flowMode
 }: { 
   locationId: string;
   businessId: string;
   businessName: string;
   googleReviewLink: string | null;
   brandColor: string;
+  predefinedTags: string[];
+  flowMode: 'direct' | 'interactive';
 }) {
-  const [step, setStep] = useState<"initial" | "tags" | "bad" | "thanks" | "feedback" | "thank_you">("initial");
+  const [step, setStep] = useState<"initial" | "tags" | "bad" | "thanks" | "feedback" | "thank_you" | "options">("initial");
   const [feedback, setFeedback] = useState("");
   const [feedbackText, setFeedbackText] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isGeneratingAI, setIsGeneratingAI] = useState(false);
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
+  const [generatedOptions, setGeneratedOptions] = useState<string[]>([]);
+  const [selectedRating, setSelectedRating] = useState<number>(0);
+  const [copiedIndex, setCopiedIndex] = useState<number | null>(null);
+  const hasLoggedScan = useRef(false);
 
-  const PREDEFINED_TAGS = [
-    "Friendly Staff",
-    "Quick Service",
-    "Great Quality",
-    "Clean Environment",
-    "Great Value"
-  ];
+  useEffect(() => {
+    if (!hasLoggedScan.current) {
+      logQrScanAction(locationId);
+      hasLoggedScan.current = true;
+    }
+  }, [locationId]);
+  const [hoveredRating, setHoveredRating] = useState(0);
 
   const handleGoodTap = () => {
     setStep("tags");
@@ -45,16 +53,25 @@ export default function ReviewFlowClient({
 
   const handleGenerateReview = async () => {
     setIsGeneratingAI(true);
-    const res = await generateReviewsAction(businessId, 5, selectedTags);
-    if (res.success && res.mode === "review" && res.review) {
-      if (typeof navigator !== "undefined" && navigator.clipboard) {
-        navigator.clipboard.writeText(res.review);
-      }
-      setTimeout(() => {
-        if (googleReviewLink) {
-          window.open(googleReviewLink, "_blank");
+    const ratingToUse = flowMode === 'interactive' ? selectedRating : 5;
+    const res = await generateReviewsAction(businessId, ratingToUse, selectedTags, flowMode);
+    
+    if (res.success) {
+      if (flowMode === 'interactive' && res.reviews) {
+        setGeneratedOptions(res.reviews);
+        // Do NOT change step, keep it on the same page
+      } else if (flowMode === 'direct' && res.review) {
+        if (typeof navigator !== "undefined" && navigator.clipboard) {
+          navigator.clipboard.writeText(res.review);
         }
-      }, 500);
+        setTimeout(() => {
+          if (googleReviewLink) {
+            window.open(googleReviewLink, "_blank");
+          }
+        }, 500);
+      }
+    } else {
+      alert(res.error || "Failed to generate review. Please try again.");
     }
     setIsGeneratingAI(false);
   };
@@ -63,6 +80,33 @@ export default function ReviewFlowClient({
     setStep("feedback");
     // Fire and forget
     logFeedbackAction(locationId, "bad_tap");
+  };
+
+  const handleStarClick = (rating: number) => {
+    if (rating >= 4) {
+      if (flowMode === 'interactive') {
+        setSelectedRating(rating);
+        // Do not change step, stay on initial to show tags below
+        logFeedbackAction(locationId, "good_tap");
+      } else {
+        handleGoodTap();
+      }
+    } else {
+      handleBadTap();
+    }
+  };
+
+  const handleOptionSelect = (review: string, index: number) => {
+    if (typeof navigator !== "undefined" && navigator.clipboard) {
+      navigator.clipboard.writeText(review);
+    }
+    setCopiedIndex(index);
+    setTimeout(() => {
+      if (googleReviewLink) {
+        window.open(googleReviewLink, "_blank");
+      }
+      setCopiedIndex(null);
+    }, 1500);
   };
 
   const handleGoogleReviewClick = () => {
@@ -90,7 +134,7 @@ export default function ReviewFlowClient({
     );
   }
 
-  if (step === "tags") {
+  if (step === "tags" && flowMode === 'direct') {
     return (
       <div className="w-full max-w-md rounded-xl bg-white p-8 text-center shadow-sm border border-gray-100">
         <h2 className="text-2xl font-bold text-gray-900">We're glad to hear that!</h2>
@@ -104,7 +148,7 @@ export default function ReviewFlowClient({
         ) : (
           <>
             <div className="flex flex-wrap justify-center gap-3 mb-8">
-              {PREDEFINED_TAGS.map((tag) => (
+              {predefinedTags.map((tag) => (
                 <button
                   key={tag}
                   onClick={() => toggleTag(tag)}
@@ -139,6 +183,8 @@ export default function ReviewFlowClient({
     );
   }
 
+  // The "options" step block is removed because it will be rendered inline in the main return.
+
   if (step === "feedback") {
     return (
       <div className="w-full max-w-md rounded-xl bg-white p-8 text-center shadow-sm border border-gray-100">
@@ -171,22 +217,115 @@ export default function ReviewFlowClient({
   }
 
   return (
-    <div className="w-full max-w-md rounded-xl bg-white p-8 text-center shadow-sm border border-gray-100">
+    <div className="w-full max-w-md rounded-xl bg-white p-8 text-center shadow-sm border border-gray-100 transition-all duration-300">
       <h1 className="text-2xl font-bold text-gray-900 mb-6">How was your experience at {businessName}?</h1>
-      <div className="flex flex-col gap-4">
-        <button 
-          onClick={handleGoodTap}
-          className="w-full rounded-md border-2 border-gray-200 p-4 text-lg font-medium text-gray-800 transition-colors hover:bg-gray-50"
-        >
-          🙂 It was good
-        </button>
-        <button 
-          onClick={handleBadTap}
-          className="w-full rounded-md border-2 border-gray-200 p-4 text-lg font-medium text-gray-800 transition-colors hover:bg-gray-50"
-        >
-          😕 Not great
-        </button>
+      <div className={`flex justify-center gap-2 ${flowMode === 'interactive' && selectedRating >= 4 ? 'mb-8' : 'mb-4'}`}>
+        {[1, 2, 3, 4, 5].map((star) => (
+          <button
+            key={star}
+            type="button"
+            className="focus:outline-none transition-transform hover:scale-110 active:scale-95"
+            onMouseEnter={() => setHoveredRating(star)}
+            onMouseLeave={() => setHoveredRating(0)}
+            onClick={() => handleStarClick(star)}
+            aria-label={`Rate ${star} stars`}
+          >
+            <svg
+              className={`w-12 h-12 transition-colors ${
+                star <= (hoveredRating || selectedRating) ? 'text-yellow-400' : 'text-gray-200'
+              }`}
+              fill="currentColor"
+              viewBox="0 0 20 20"
+              xmlns="http://www.w3.org/2000/svg"
+            >
+              <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+            </svg>
+          </button>
+        ))}
       </div>
+      
+      {flowMode === 'interactive' && selectedRating >= 4 && (
+        <div className="animate-in fade-in slide-in-from-top-4 duration-500">
+          <p className="text-gray-600 mb-4 font-medium border-t border-gray-100 pt-6">What were the highlights?</p>
+          
+          <div className="flex flex-wrap justify-center gap-3 mb-8">
+            {predefinedTags.map((tag) => (
+              <button
+                key={tag}
+                onClick={() => toggleTag(tag)}
+                className={`px-4 py-2 rounded-full border text-sm font-medium transition-colors ${
+                  selectedTags.includes(tag)
+                    ? "border-emerald-500 bg-emerald-50 text-emerald-700"
+                    : "border-gray-200 bg-white text-gray-600 hover:border-gray-300"
+                }`}
+              >
+                {tag}
+              </button>
+            ))}
+          </div>
+          
+          {generatedOptions.length > 0 ? (
+            <div className="animate-in fade-in slide-in-from-top-4 duration-500 border-t border-gray-100 pt-6 mt-6">
+              <h2 className="text-xl font-bold text-gray-900 mb-2">Select your favorite!</h2>
+              <p className="text-sm text-gray-600 mb-6">Tap a review to copy it and open Google Maps.</p>
+              
+              <div className="flex flex-col gap-3 mb-6">
+                {generatedOptions.map((review, i) => (
+                  <button
+                    key={i}
+                    onClick={() => handleOptionSelect(review, i)}
+                    className="relative text-left p-4 rounded-lg border border-gray-200 hover:border-emerald-500 hover:bg-emerald-50 transition-all group overflow-hidden"
+                  >
+                    <p className="text-gray-700 text-sm italic">"{review}"</p>
+                    {copiedIndex === i && (
+                      <div className="absolute inset-0 bg-emerald-500/95 flex items-center justify-center animate-in fade-in duration-200">
+                        <span className="text-white font-medium flex items-center gap-2">
+                          <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                          </svg>
+                          Review copied!
+                        </span>
+                      </div>
+                    )}
+                  </button>
+                ))}
+              </div>
+              
+              <button 
+                onClick={handleGoogleReviewClick}
+                className="text-sm font-medium text-gray-500 hover:text-gray-700 underline"
+              >
+                Skip and write my own review →
+              </button>
+            </div>
+          ) : (
+            <>
+              {isGeneratingAI ? (
+                <div className="flex flex-col items-center justify-center py-4">
+                  <div className="w-8 h-8 border-4 border-emerald-500/30 border-t-emerald-500 rounded-full animate-spin mb-4"></div>
+                  <p className="text-emerald-600 font-medium animate-pulse">Crafting perfect reviews...</p>
+                </div>
+              ) : (
+                <>
+                  <button 
+                    onClick={handleGenerateReview}
+                    className="w-full rounded-md p-3 font-medium text-white transition-opacity hover:opacity-90 mb-2"
+                    style={{ backgroundColor: brandColor || "#2f6b4f" }}
+                  >
+                    Generate Review
+                  </button>
+                  <button 
+                    onClick={handleGoogleReviewClick}
+                    className="text-sm font-medium text-gray-400 hover:text-gray-600 underline block w-full mt-2"
+                  >
+                    Skip and write my own review
+                  </button>
+                </>
+              )}
+            </>
+          )}
+        </div>
+      )}
     </div>
   );
 }

@@ -24,6 +24,23 @@ export async function getBusinessByOwner(userId: string) {
   return data;
 }
 
+/**
+ * Fetch a single business by its ID.
+ * Returns the first matching row or `null`.
+ */
+export async function getBusinessById(businessId: string) {
+  const supabase = await createClient();
+
+  const { data, error } = await supabase
+    .from("businesses")
+    .select("*")
+    .eq("id", businessId)
+    .maybeSingle();
+
+  if (error) throw error;
+  return data;
+}
+
 // ------------------------------------------------------------------ //
 //  Locations                                                          //
 // ------------------------------------------------------------------ //
@@ -200,6 +217,132 @@ export async function createLocation(businessId: string, name: string, googleRev
       google_review_link: googleReviewLink,
       brand_color: brandColor,
     })
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data;
+}
+
+export async function createBranch(businessId: string, payload: {
+  name: string;
+  category: string;
+  description: string;
+  address: string;
+  phone: string;
+  google_review_link: string;
+  logo_url: string;
+}) {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("locations")
+    .insert({
+      business_id: businessId,
+      name: payload.name,
+      category: payload.category,
+      description: payload.description,
+      address: payload.address,
+      phone: payload.phone,
+      google_review_link: payload.google_review_link,
+      logo_url: payload.logo_url,
+      brand_color: "#10b981", // default emerald
+    })
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data;
+}
+
+export async function updateBusinessTags(businessId: string, tags: string[]) {
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("businesses")
+    .update({ predefined_tags: tags })
+    .eq("id", businessId);
+
+  if (error) throw error;
+}
+
+export async function updateLocationFlowMode(locationId: string, mode: 'direct' | 'interactive') {
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("locations")
+    .update({ review_flow_mode: mode })
+    .eq("id", locationId);
+
+  if (error) throw error;
+}
+
+export async function updateLocation(locationId: string, name: string, googleReviewLink: string) {
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("locations")
+    .update({ 
+      name, 
+      google_review_link: googleReviewLink 
+    })
+    .eq("id", locationId);
+
+  if (error) throw error;
+}
+
+export async function deleteLocation(locationId: string) {
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("locations")
+    .delete()
+    .eq("id", locationId);
+
+  if (error) throw error;
+}
+
+// ------------------------------------------------------------------ //
+//  Google Reviews                                                     //
+// ------------------------------------------------------------------ //
+
+export async function getGoogleReviewsByLocation(locationId: string) {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("google_reviews")
+    .select("*")
+    .eq("location_id", locationId)
+    .order("created_at", { ascending: false });
+
+  if (error) throw error;
+  return data;
+}
+
+export async function insertMockGoogleReview(locationId: string, payload: {
+  author_name: string;
+  rating: number;
+  review_text: string;
+}) {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("google_reviews")
+    .insert({
+      location_id: locationId,
+      author_name: payload.author_name,
+      rating: payload.rating,
+      review_text: payload.review_text
+    })
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data;
+}
+
+export async function updateGoogleReviewReply(reviewId: string, aiResponse: string) {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("google_reviews")
+    .update({ 
+      ai_response: aiResponse,
+      responded_at: new Date().toISOString()
+    })
+    .eq("id", reviewId)
     .select()
     .single();
 

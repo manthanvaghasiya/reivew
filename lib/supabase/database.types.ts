@@ -26,6 +26,7 @@ export type Business = {
   industry: string;
   google_review_url: string;
   ai_keywords: string | null;
+  predefined_tags: string[];
   created_at: string;
 };
 
@@ -35,6 +36,12 @@ export type Location = {
   name: string;
   google_review_link: string | null;
   brand_color: string;
+  review_flow_mode: 'direct' | 'interactive';
+  category: string | null;
+  description: string | null;
+  address: string | null;
+  phone: string | null;
+  logo_url: string | null;
   created_at: string;
 };
 
@@ -52,6 +59,17 @@ export type FeedbackEvent = {
   created_at: string;
 };
 
+export type GoogleReview = {
+  id: string;
+  location_id: string;
+  author_name: string;
+  rating: number;
+  review_text: string | null;
+  ai_response: string | null;
+  created_at: string;
+  responded_at: string | null;
+};
+
 /* ------------------------------------------------------------------ */
 /*  Insert types (what you pass to an INSERT)                         */
 /* ------------------------------------------------------------------ */
@@ -62,6 +80,7 @@ export type BusinessInsert = {
   industry?: string;
   google_review_url?: string;
   ai_keywords?: string | null;
+  predefined_tags?: string[];
 };
 
 export type LocationInsert = {
@@ -69,6 +88,12 @@ export type LocationInsert = {
   name: string;
   google_review_link?: string | null;
   brand_color?: string;
+  review_flow_mode?: 'direct' | 'interactive';
+  category?: string | null;
+  description?: string | null;
+  address?: string | null;
+  phone?: string | null;
+  logo_url?: string | null;
 };
 
 export type QrScanInsert = {
@@ -79,6 +104,15 @@ export type FeedbackEventInsert = {
   location_id: string;
   type: FeedbackType;
   message?: string | null;
+};
+
+export type GoogleReviewInsert = {
+  location_id: string;
+  author_name: string;
+  rating: number;
+  review_text?: string | null;
+  ai_response?: string | null;
+  responded_at?: string | null;
 };
 
 /* ------------------------------------------------------------------ */
@@ -162,6 +196,20 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "private_feedback_location_id_fkey";
+            columns: ["location_id"];
+            isOneToOne: false;
+            referencedRelation: "locations";
+            referencedColumns: ["id"];
+          }
+        ];
+      };
+      google_reviews: {
+        Row: GoogleReview;
+        Insert: GoogleReviewInsert;
+        Update: Partial<GoogleReviewInsert>;
+        Relationships: [
+          {
+            foreignKeyName: "google_reviews_location_id_fkey";
             columns: ["location_id"];
             isOneToOne: false;
             referencedRelation: "locations";
