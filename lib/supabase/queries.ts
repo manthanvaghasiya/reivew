@@ -20,7 +20,7 @@ export async function getBusinessByOwner(userId: string) {
     .limit(1)
     .maybeSingle();
 
-  if (error) throw error;
+  if (error) throw new Error(error.message);
   return data;
 }
 
@@ -37,7 +37,10 @@ export async function getBusinessById(businessId: string) {
     .eq("id", businessId)
     .maybeSingle();
 
-  if (error) throw error;
+  if (error) {
+    if (error.code === "22P02") return null;
+    throw new Error(error.message);
+  }
   return data;
 }
 
@@ -57,7 +60,7 @@ export async function getLocationsByBusiness(businessId: string) {
     .eq("business_id", businessId)
     .order("created_at", { ascending: true });
 
-  if (error) throw error;
+  if (error) throw new Error(error.message);
   return data;
 }
 
@@ -75,7 +78,10 @@ export async function getLocationById(locationId: string) {
     .eq("id", locationId)
     .maybeSingle();
 
-  if (error) throw error;
+  if (error) {
+    if (error.code === "22P02") return null;
+    throw new Error(error.message);
+  }
   return data;
 }
 
@@ -94,7 +100,7 @@ export async function logQrScan(locationId: string) {
     .from("qr_scans")
     .insert({ location_id: locationId });
 
-  if (error) throw error;
+  if (error) throw new Error(error.message);
 }
 
 // ------------------------------------------------------------------ //
@@ -120,7 +126,7 @@ export async function logFeedbackEvent(
       message: message ?? null,
     });
 
-  if (error) throw error;
+  if (error) throw new Error(error.message);
 }
 
 /**
@@ -141,7 +147,7 @@ export async function getFeedbackEventsByLocation(
       .eq("location_id", locationId)
       .order("created_at", { ascending: false });
 
-    if (error) throw error;
+    if (error) throw new Error(error.message);
     return data;
   }
 
@@ -157,7 +163,7 @@ export async function getFeedbackEventsByLocation(
 
   const { data, error } = await query;
 
-  if (error) throw error;
+  if (error) throw new Error(error.message);
   return data;
 }
 
@@ -195,15 +201,15 @@ export async function getFeedbackStatsByLocation(locationId: string) {
 //  Mutations                                                          //
 // ------------------------------------------------------------------ //
 
-export async function createBusiness(userId: string, name: string) {
+export async function createBusiness(userId: string, name: string, industry: string = "Unspecified", googleReviewUrl: string = "") {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("businesses")
-    .insert({ owner_id: userId, name })
+    .insert({ owner_id: userId, name, industry, google_review_url: googleReviewUrl })
     .select()
     .single();
 
-  if (error) throw error;
+  if (error) throw new Error(error.message);
   return data;
 }
 
@@ -220,7 +226,7 @@ export async function createLocation(businessId: string, name: string, googleRev
     .select()
     .single();
 
-  if (error) throw error;
+  if (error) throw new Error(error.message);
   return data;
 }
 
@@ -250,7 +256,7 @@ export async function createBranch(businessId: string, payload: {
     .select()
     .single();
 
-  if (error) throw error;
+  if (error) throw new Error(error.message);
   return data;
 }
 
@@ -261,7 +267,7 @@ export async function updateBusinessTags(businessId: string, tags: string[]) {
     .update({ predefined_tags: tags })
     .eq("id", businessId);
 
-  if (error) throw error;
+  if (error) throw new Error(error.message);
 }
 
 export async function updateLocationFlowMode(locationId: string, mode: 'direct' | 'interactive') {
@@ -271,7 +277,7 @@ export async function updateLocationFlowMode(locationId: string, mode: 'direct' 
     .update({ review_flow_mode: mode })
     .eq("id", locationId);
 
-  if (error) throw error;
+  if (error) throw new Error(error.message);
 }
 
 export async function updateLocation(locationId: string, name: string, googleReviewLink: string) {
@@ -284,7 +290,7 @@ export async function updateLocation(locationId: string, name: string, googleRev
     })
     .eq("id", locationId);
 
-  if (error) throw error;
+  if (error) throw new Error(error.message);
 }
 
 export async function deleteLocation(locationId: string) {
@@ -294,7 +300,7 @@ export async function deleteLocation(locationId: string) {
     .delete()
     .eq("id", locationId);
 
-  if (error) throw error;
+  if (error) throw new Error(error.message);
 }
 
 // ------------------------------------------------------------------ //
@@ -309,30 +315,11 @@ export async function getGoogleReviewsByLocation(locationId: string) {
     .eq("location_id", locationId)
     .order("created_at", { ascending: false });
 
-  if (error) throw error;
+  if (error) throw new Error(error.message);
   return data;
 }
 
-export async function insertMockGoogleReview(locationId: string, payload: {
-  author_name: string;
-  rating: number;
-  review_text: string;
-}) {
-  const supabase = await createClient();
-  const { data, error } = await supabase
-    .from("google_reviews")
-    .insert({
-      location_id: locationId,
-      author_name: payload.author_name,
-      rating: payload.rating,
-      review_text: payload.review_text
-    })
-    .select()
-    .single();
 
-  if (error) throw error;
-  return data;
-}
 
 export async function updateGoogleReviewReply(reviewId: string, aiResponse: string) {
   const supabase = await createClient();
@@ -346,6 +333,57 @@ export async function updateGoogleReviewReply(reviewId: string, aiResponse: stri
     .select()
     .single();
 
-  if (error) throw error;
+  if (error) throw new Error(error.message);
+  return data;
+}
+
+// ------------------------------------------------------------------ //
+//  Leads Management                                                   //
+// ------------------------------------------------------------------ //
+
+export async function getLeadsByBusiness(businessId: string) {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("leads")
+    .select("*")
+    .eq("business_id", businessId)
+    .order("created_at", { ascending: false });
+
+  if (error) throw new Error(error.message);
+  return data;
+}
+
+export async function createLead(payload: {
+  business_id: string;
+  name: string;
+  phone: string;
+  source: string;
+}) {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("leads")
+    .insert(payload)
+    .select()
+    .single();
+
+  if (error) throw new Error(error.message);
+  return data;
+}
+
+export async function updateLeadStatus(leadId: string, status: string, aiSummary?: string, whatsappMessageId?: string) {
+  const supabase = await createClient();
+  
+  const updates: any = { status, updated_at: new Date().toISOString() };
+  if (aiSummary !== undefined) updates.ai_summary = aiSummary;
+  if (whatsappMessageId !== undefined) updates.whatsapp_message_id = whatsappMessageId;
+
+  const { data, error } = await supabase
+    .from("leads")
+    .update(updates)
+    .eq("id", leadId)
+    .select()
+    .single();
+
+  if (error) throw new Error(error.message);
   return data;
 }

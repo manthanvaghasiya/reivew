@@ -4,23 +4,39 @@ import { updateLocationFlowMode, updateBusinessTags, updateLocation, deleteLocat
 import { revalidatePath } from "next/cache";
 
 export async function updateFlowModeAction(locationId: string, mode: 'direct' | 'interactive') {
-  await updateLocationFlowMode(locationId, mode);
-  revalidatePath("/dashboard");
+  try {
+    await updateLocationFlowMode(locationId, mode);
+    revalidatePath("/dashboard");
+  } catch (error: any) {
+    throw new Error(error.message || "Failed to update flow mode");
+  }
 }
 
 export async function updateBusinessTagsAction(businessId: string, tags: string[]) {
-  await updateBusinessTags(businessId, tags);
-  revalidatePath("/dashboard");
+  try {
+    await updateBusinessTags(businessId, tags);
+    revalidatePath("/dashboard");
+  } catch (error: any) {
+    throw new Error(error.message || "Failed to update business tags");
+  }
 }
 
 export async function updateLocationAction(locationId: string, name: string, googleLink: string) {
-  await updateLocation(locationId, name, googleLink);
-  revalidatePath("/dashboard");
+  try {
+    await updateLocation(locationId, name, googleLink);
+    revalidatePath("/dashboard");
+  } catch (error: any) {
+    throw new Error(error.message || "Failed to update location");
+  }
 }
 
 export async function deleteLocationAction(locationId: string) {
-  await deleteLocation(locationId);
-  revalidatePath("/dashboard");
+  try {
+    await deleteLocation(locationId);
+    revalidatePath("/dashboard");
+  } catch (error: any) {
+    throw new Error(error.message || "Failed to delete location");
+  }
 }
 
 export async function createBranchAction(businessId: string, payload: {
@@ -32,7 +48,11 @@ export async function createBranchAction(businessId: string, payload: {
   google_review_link: string;
   logo_url: string;
 }) {
-  const { createBranch } = await import("@/lib/supabase/queries");
-  await createBranch(businessId, payload);
-  revalidatePath("/dashboard");
+  try {
+    const { createBranch } = await import("@/lib/supabase/queries");
+    await createBranch(businessId, payload);
+    revalidatePath("/dashboard");
+  } catch (error: any) {
+    throw new Error(error.message || "Failed to create branch");
+  }
 }

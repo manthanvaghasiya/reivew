@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState, useTransition, useEffect } from "react";
 import type { GoogleReview } from "@/lib/supabase/database.types";
-import { generateMockReviewAction, generateAiReplyAction, updateReviewReplyAction } from "@/app/dashboard/reviews/actions";
+import { generateAiReplyAction, updateReviewReplyAction } from "@/app/dashboard/reviews/actions";
 
 export default function FeedbackStreamClient({ 
   businessId, 
@@ -16,6 +16,11 @@ export default function FeedbackStreamClient({
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editDraft, setEditDraft] = useState("");
   const [isPending, startTransition] = useTransition();
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const handleEditClick = (review: GoogleReview) => {
     setEditingId(review.id);
@@ -31,12 +36,6 @@ export default function FeedbackStreamClient({
 
   const handleCancelEdit = () => {
     setEditingId(null);
-  };
-
-  const handleGenerateTestReview = () => {
-    startTransition(async () => {
-      await generateMockReviewAction(businessId);
-    });
   };
 
   const handleAutoGenerateReplies = () => {
@@ -57,13 +56,7 @@ export default function FeedbackStreamClient({
         </div>
         
         <div className="flex items-center gap-4">
-          <button 
-            onClick={handleGenerateTestReview} 
-            disabled={isPending}
-            className="text-xs font-bold uppercase tracking-widest px-4 py-2 bg-white/5 hover:bg-white/10 rounded-xl text-gray-300 transition-colors disabled:opacity-50"
-          >
-            + Test Review
-          </button>
+
           <button 
             onClick={handleAutoGenerateReplies} 
             disabled={isPending}
@@ -90,12 +83,6 @@ export default function FeedbackStreamClient({
         {initialReviews.length === 0 ? (
           <div className="text-center py-20 border border-white/5 rounded-[2rem] bg-[#0a0a0a]">
             <p className="text-gray-500 text-sm font-medium">No reviews found.</p>
-            <button 
-              onClick={handleGenerateTestReview} 
-              className="mt-4 text-xs font-bold uppercase tracking-widest text-blue-500 hover:text-blue-400"
-            >
-              Generate a test review
-            </button>
           </div>
         ) : (
           initialReviews.map((review) => (
@@ -113,7 +100,7 @@ export default function FeedbackStreamClient({
                       <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                       </svg>
-                      {new Date(review.created_at).toLocaleDateString()}
+                      {mounted ? new Date(review.created_at).toLocaleDateString() : ""}
                     </div>
                   </div>
                   

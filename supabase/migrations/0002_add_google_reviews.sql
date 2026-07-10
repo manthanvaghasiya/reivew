@@ -37,7 +37,7 @@ create policy "Owner can read own google_reviews"
       select 1 from public.locations l
       join public.businesses b on b.id = l.business_id
       where l.id = location_id
-        and b.owner_user_id = auth.uid()
+        and b.owner_id = auth.uid()
     )
   );
 
@@ -49,7 +49,7 @@ create policy "Owner can update own google_reviews"
       select 1 from public.locations l
       join public.businesses b on b.id = l.business_id
       where l.id = location_id
-        and b.owner_user_id = auth.uid()
+        and b.owner_id = auth.uid()
     )
   )
   with check (
@@ -57,7 +57,7 @@ create policy "Owner can update own google_reviews"
       select 1 from public.locations l
       join public.businesses b on b.id = l.business_id
       where l.id = location_id
-        and b.owner_user_id = auth.uid()
+        and b.owner_id = auth.uid()
     )
   );
 
@@ -69,6 +69,6 @@ create policy "Owner can insert own google_reviews"
       select 1 from public.locations l
       join public.businesses b on b.id = l.business_id
       where l.id = location_id
-        and b.owner_user_id = auth.uid()
+        and b.owner_id = auth.uid()
     )
   );

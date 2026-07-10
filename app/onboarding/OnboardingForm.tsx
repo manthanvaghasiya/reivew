@@ -131,6 +131,31 @@ export default function OnboardingForm() {
       </div>
 
       <div>
+        <label className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300" htmlFor="industry">
+          Industry
+        </label>
+        <select
+          id="industry"
+          name="industry"
+          className="w-full rounded-md border p-2 text-gray-900 bg-white dark:bg-gray-800 dark:text-white outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 border-gray-300 dark:border-gray-700"
+          defaultValue="Unspecified"
+        >
+          <option value="Unspecified">Select an industry...</option>
+          <option value="Restaurants">Restaurants & Food</option>
+          <option value="Healthcare">Healthcare & Medical</option>
+          <option value="Retail">Retail & Shopping</option>
+          <option value="Automotive">Automotive</option>
+          <option value="Home Services">Home Services (Plumbing, HVAC, etc.)</option>
+          <option value="Real Estate">Real Estate</option>
+          <option value="Salons">Salons & Beauty</option>
+          <option value="Fitness">Fitness & Gyms</option>
+          <option value="Education">Education</option>
+          <option value="Legal">Legal</option>
+          <option value="Other">Other</option>
+        </select>
+      </div>
+
+      <div>
         <label className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300" htmlFor="googleReviewLink">
           Google Review Link
         </label>

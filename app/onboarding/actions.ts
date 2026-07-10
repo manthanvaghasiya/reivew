@@ -16,6 +16,7 @@ export async function submitOnboarding(formData: FormData) {
   const locationName = formData.get("locationName") as string;
   const googleReviewLink = formData.get("googleReviewLink") as string;
   const brandColor = formData.get("brandColor") as string;
+  const industry = (formData.get("industry") as string) || "Unspecified";
 
   if (!businessName || !locationName || !googleReviewLink) {
     return { error: "Missing required fields." };
@@ -24,7 +25,7 @@ export async function submitOnboarding(formData: FormData) {
   let locationId = "";
 
   try {
-    const business = await createBusiness(authData.user.id, businessName);
+    const business = await createBusiness(authData.user.id, businessName, industry, googleReviewLink);
     const location = await createLocation(business.id, locationName, googleReviewLink, brandColor || "#2f6b4f");
     locationId = location.id;
   } catch (err: any) {

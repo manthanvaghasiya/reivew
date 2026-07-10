@@ -20,7 +20,7 @@ export default function ReviewFlowClient({
   predefinedTags: string[];
   flowMode: 'direct' | 'interactive';
 }) {
-  const [step, setStep] = useState<"initial" | "tags" | "bad" | "thanks" | "feedback" | "thank_you" | "options">("initial");
+  const [step, setStep] = useState<"initial" | "tags" | "bad" | "thanks" | "feedback" | "thank_you" | "options" | "direct_copied">("initial");
   const [feedback, setFeedback] = useState("");
   const [feedbackText, setFeedbackText] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -46,15 +46,22 @@ export default function ReviewFlowClient({
   };
 
   const toggleTag = (tag: string) => {
-    setSelectedTags((prev) => 
-      prev.includes(tag) ? prev.filter((t) => t !== tag) : [...prev, tag]
-    );
+    const newTags = selectedTags.includes(tag) 
+      ? selectedTags.filter((t) => t !== tag) 
+      : [...selectedTags, tag];
+      
+    setSelectedTags(newTags);
+    
+    if (generatedOptions.length > 0) {
+      handleGenerateReview(newTags);
+    }
   };
 
-  const handleGenerateReview = async () => {
+  const handleGenerateReview = async (tagsOverride?: string[]) => {
     setIsGeneratingAI(true);
     const ratingToUse = flowMode === 'interactive' ? selectedRating : 5;
-    const res = await generateReviewsAction(businessId, ratingToUse, selectedTags, flowMode);
+    const tagsToUse = tagsOverride || selectedTags;
+    const res = await generateReviewsAction(businessId, ratingToUse, tagsToUse, flowMode);
     
     if (res.success) {
       if (flowMode === 'interactive' && res.reviews) {
@@ -64,11 +71,12 @@ export default function ReviewFlowClient({
         if (typeof navigator !== "undefined" && navigator.clipboard) {
           navigator.clipboard.writeText(res.review);
         }
+        setStep("direct_copied");
         setTimeout(() => {
           if (googleReviewLink) {
             window.open(googleReviewLink, "_blank");
           }
-        }, 500);
+        }, 2000);
       }
     } else {
       alert(res.error || "Failed to generate review. Please try again.");
@@ -134,6 +142,30 @@ export default function ReviewFlowClient({
     );
   }
 
+  if (step === "direct_copied") {
+    return (
+      <div className="w-full max-w-md rounded-xl bg-emerald-500 p-8 text-center shadow-lg border border-emerald-600 animate-in fade-in zoom-in duration-300">
+        <div className="flex justify-center mb-4">
+          <div className="bg-white/20 p-3 rounded-full">
+            <svg className="w-8 h-8 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+            </svg>
+          </div>
+        </div>
+        <h2 className="text-2xl font-bold text-white mb-2">Review Copied!</h2>
+        <p className="text-emerald-50 font-medium">Opening Google Maps...</p>
+        <div className="mt-6 bg-white/10 rounded-lg p-4 backdrop-blur-sm border border-white/20 text-left">
+          <p className="text-white text-sm leading-relaxed">
+            <strong className="block mb-2 uppercase tracking-wide text-xs text-emerald-100">Next steps:</strong>
+            1. Select your star rating ⭐️<br/>
+            2. Tap and select <strong>Paste</strong> for the text 📋<br/>
+            3. Click Submit! 🎉
+          </p>
+        </div>
+      </div>
+    );
+  }
+
   if (step === "tags" && flowMode === 'direct') {
     return (
       <div className="w-full max-w-md rounded-xl bg-white p-8 text-center shadow-sm border border-gray-100">
@@ -164,7 +196,7 @@ export default function ReviewFlowClient({
             </div>
 
             <button 
-              onClick={handleGenerateReview}
+              onClick={() => handleGenerateReview()}
               className="w-full rounded-md p-3 font-medium text-white transition-opacity hover:opacity-90 mb-4"
               style={{ backgroundColor: brandColor || "#2f6b4f" }}
             >
@@ -264,10 +296,15 @@ export default function ReviewFlowClient({
             ))}
           </div>
           
-          {generatedOptions.length > 0 ? (
+          {isGeneratingAI ? (
+            <div className="flex flex-col items-center justify-center py-8 border-t border-gray-100 pt-6 mt-6">
+              <div className="w-8 h-8 border-4 border-emerald-500/30 border-t-emerald-500 rounded-full animate-spin mb-4"></div>
+              <p className="text-emerald-600 font-medium animate-pulse">Crafting perfect reviews...</p>
+            </div>
+          ) : generatedOptions.length > 0 ? (
             <div className="animate-in fade-in slide-in-from-top-4 duration-500 border-t border-gray-100 pt-6 mt-6">
               <h2 className="text-xl font-bold text-gray-900 mb-2">Select your favorite!</h2>
-              <p className="text-sm text-gray-600 mb-6">Tap a review to copy it and open Google Maps.</p>
+              <p className="text-sm text-gray-600 mb-6">Tap to copy a review. Then <strong>paste</strong> it and select stars on Google.</p>
               
               <div className="flex flex-col gap-3 mb-6">
                 {generatedOptions.map((review, i) => (
@@ -278,12 +315,15 @@ export default function ReviewFlowClient({
                   >
                     <p className="text-gray-700 text-sm italic">"{review}"</p>
                     {copiedIndex === i && (
-                      <div className="absolute inset-0 bg-emerald-500/95 flex items-center justify-center animate-in fade-in duration-200">
-                        <span className="text-white font-medium flex items-center gap-2">
-                          <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <div className="absolute inset-0 bg-emerald-500/95 flex flex-col items-center justify-center animate-in fade-in duration-200">
+                        <span className="text-white font-medium flex items-center gap-2 text-lg">
+                          <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                           </svg>
                           Review copied!
+                        </span>
+                        <span className="text-emerald-50 text-sm mt-1 font-medium text-center px-4">
+                          Opening Google...<br/>Don't forget to paste it!
                         </span>
                       </div>
                     )}
@@ -300,28 +340,19 @@ export default function ReviewFlowClient({
             </div>
           ) : (
             <>
-              {isGeneratingAI ? (
-                <div className="flex flex-col items-center justify-center py-4">
-                  <div className="w-8 h-8 border-4 border-emerald-500/30 border-t-emerald-500 rounded-full animate-spin mb-4"></div>
-                  <p className="text-emerald-600 font-medium animate-pulse">Crafting perfect reviews...</p>
-                </div>
-              ) : (
-                <>
-                  <button 
-                    onClick={handleGenerateReview}
-                    className="w-full rounded-md p-3 font-medium text-white transition-opacity hover:opacity-90 mb-2"
-                    style={{ backgroundColor: brandColor || "#2f6b4f" }}
-                  >
-                    Generate Review
-                  </button>
-                  <button 
-                    onClick={handleGoogleReviewClick}
-                    className="text-sm font-medium text-gray-400 hover:text-gray-600 underline block w-full mt-2"
-                  >
-                    Skip and write my own review
-                  </button>
-                </>
-              )}
+              <button 
+                onClick={() => handleGenerateReview()}
+                className="w-full rounded-md p-3 font-medium text-white transition-opacity hover:opacity-90 mb-2 mt-6"
+                style={{ backgroundColor: brandColor || "#2f6b4f" }}
+              >
+                Generate Review
+              </button>
+              <button 
+                onClick={handleGoogleReviewClick}
+                className="text-sm font-medium text-gray-400 hover:text-gray-600 underline block w-full mt-2"
+              >
+                Skip and write my own review
+              </button>
             </>
           )}
         </div>
