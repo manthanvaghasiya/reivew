@@ -20,7 +20,11 @@ export default async function LeadsPage() {
 
   return (
     <div className="max-w-7xl mx-auto pb-20">
-      <LeadBoardClient businessId={business.id} initialLeads={leads} />
+      <LeadBoardClient 
+        businessId={business.id} 
+        initialLeads={leads} 
+        initialCustomPrompt={business.custom_ai_prompt || ""} 
+      />
     </div>
   );
 }

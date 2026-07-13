@@ -27,6 +27,7 @@ export type Business = {
   google_review_url: string;
   ai_keywords: string | null;
   predefined_tags: string[];
+  custom_ai_prompt: string | null;
   created_at: string;
 };
 
@@ -72,6 +73,27 @@ export type GoogleReview = {
   responded_at: string | null;
 };
 
+export type Lead = {
+  id: string;
+  business_id: string;
+  name: string;
+  phone: string;
+  source: string;
+  status: string;
+  ai_summary: string | null;
+  whatsapp_message_id: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type LeadMessage = {
+  id: string;
+  lead_id: string;
+  sender: "user" | "business" | "ai";
+  message_text: string;
+  created_at: string;
+};
+
 /* ------------------------------------------------------------------ */
 /*  Insert types (what you pass to an INSERT)                         */
 /* ------------------------------------------------------------------ */
@@ -83,6 +105,7 @@ export type BusinessInsert = {
   google_review_url?: string;
   ai_keywords?: string | null;
   predefined_tags?: string[];
+  custom_ai_prompt?: string | null;
 };
 
 export type LocationInsert = {
@@ -117,6 +140,22 @@ export type GoogleReviewInsert = {
   review_text?: string | null;
   ai_response?: string | null;
   responded_at?: string | null;
+};
+
+export type LeadInsert = {
+  business_id: string;
+  name: string;
+  phone: string;
+  source?: string;
+  status?: string;
+  ai_summary?: string | null;
+  whatsapp_message_id?: string | null;
+};
+
+export type LeadMessageInsert = {
+  lead_id: string;
+  sender: "user" | "business" | "ai";
+  message_text: string;
 };
 
 /* ------------------------------------------------------------------ */
@@ -217,6 +256,34 @@ export type Database = {
             columns: ["location_id"];
             isOneToOne: false;
             referencedRelation: "locations";
+            referencedColumns: ["id"];
+          }
+        ];
+      };
+      leads: {
+        Row: Lead;
+        Insert: LeadInsert;
+        Update: Partial<LeadInsert>;
+        Relationships: [
+          {
+            foreignKeyName: "leads_business_id_fkey";
+            columns: ["business_id"];
+            isOneToOne: false;
+            referencedRelation: "businesses";
+            referencedColumns: ["id"];
+          }
+        ];
+      };
+      lead_messages: {
+        Row: LeadMessage;
+        Insert: LeadMessageInsert;
+        Update: Partial<LeadMessageInsert>;
+        Relationships: [
+          {
+            foreignKeyName: "lead_messages_lead_id_fkey";
+            columns: ["lead_id"];
+            isOneToOne: false;
+            referencedRelation: "leads";
             referencedColumns: ["id"];
           }
         ];

@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { createLead, updateLeadStatus, getBusinessByOwner } from "@/lib/supabase/queries";
+import { createLead, updateLeadStatus, getBusinessByOwner, getLeadMessages, insertLeadMessage, updateBusinessAIPrompt } from "@/lib/supabase/queries";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { createClient } from "@/lib/supabase/server";
 
@@ -103,6 +103,59 @@ export async function sendFinalConfirmationAction(leadId: string, leadPhone: str
 
     await updateLeadStatus(leadId, "Confirmed");
     
+    revalidatePath("/dashboard/leads");
+    return { success: true };
+  } catch (error: any) {
+    return { success: false, error: error.message };
+  }
+}
+
+export async function fetchLeadMessagesAction(leadId: string) {
+  try {
+    const messages = await getLeadMessages(leadId);
+    return { success: true, messages };
+  } catch (error: any) {
+    return { success: false, error: error.message };
+  }
+}
+
+export async function sendManualMessageAction(leadId: string, leadPhone: string, messageText: string) {
+  try {
+    const metaToken = process.env.META_WHATSAPP_TOKEN || "mock_token";
+    const phoneNumberId = process.env.META_PHONE_NUMBER_ID || "mock_phone_id";
+    
+    if (metaToken !== "mock_token") {
+      await fetch(`https://graph.facebook.com/v20.0/${phoneNumberId}/messages`, {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${metaToken}`,
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          messaging_product: "whatsapp",
+          to: leadPhone.replace(/[^0-9]/g, ""),
+          type: "text",
+          text: { body: messageText }
+        })
+      });
+    }
+
+    await insertLeadMessage({
+      lead_id: leadId,
+      sender: "business",
+      message_text: messageText
+    });
+    
+    revalidatePath("/dashboard/leads");
+    return { success: true };
+  } catch (error: any) {
+    return { success: false, error: error.message };
+  }
+}
+
+export async function updateBusinessPromptAction(businessId: string, prompt: string) {
+  try {
+    await updateBusinessAIPrompt(businessId, prompt);
     revalidatePath("/dashboard/leads");
     return { success: true };
   } catch (error: any) {

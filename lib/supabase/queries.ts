@@ -387,3 +387,37 @@ export async function updateLeadStatus(leadId: string, status: string, aiSummary
   if (error) throw new Error(error.message);
   return data;
 }
+
+export async function getLeadMessages(leadId: string) {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("lead_messages")
+    .select("*")
+    .eq("lead_id", leadId)
+    .order("created_at", { ascending: true });
+
+  if (error) throw new Error(error.message);
+  return data;
+}
+
+export async function insertLeadMessage(payload: { lead_id: string; sender: "user" | "business" | "ai"; message_text: string }) {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("lead_messages")
+    .insert(payload)
+    .select()
+    .single();
+
+  if (error) throw new Error(error.message);
+  return data;
+}
+
+export async function updateBusinessAIPrompt(businessId: string, prompt: string) {
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("businesses")
+    .update({ custom_ai_prompt: prompt })
+    .eq("id", businessId);
+
+  if (error) throw new Error(error.message);
+}

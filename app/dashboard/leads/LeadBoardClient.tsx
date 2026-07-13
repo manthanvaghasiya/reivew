@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { addLeadAction, sendAiWhatsAppMessageAction, sendFinalConfirmationAction } from "./actions";
+import { addLeadAction, fetchLeadMessagesAction, sendManualMessageAction, updateBusinessPromptAction } from "./actions";
 
 type Lead = {
   id: string;
@@ -13,15 +13,41 @@ type Lead = {
   created_at: string;
 };
 
-export default function LeadBoardClient({ businessId, initialLeads }: { businessId: string, initialLeads: Lead[] }) {
+type LeadMessage = {
+  id: string;
+  lead_id: string;
+  sender: "user" | "business" | "ai";
+  message_text: string;
+  created_at: string;
+};
+
+export default function LeadBoardClient({ 
+  businessId, 
+  initialLeads, 
+  initialCustomPrompt 
+}: { 
+  businessId: string, 
+  initialLeads: Lead[],
+  initialCustomPrompt: string
+}) {
   const [leads, setLeads] = useState<Lead[]>(initialLeads);
   const [isPending, startTransition] = useTransition();
+
+  // Settings state
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [customPrompt, setCustomPrompt] = useState(initialCustomPrompt);
 
   // New lead form state
   const [isAdding, setIsAdding] = useState(false);
   const [newName, setNewName] = useState("");
   const [newPhone, setNewPhone] = useState("");
   const [newSource, setNewSource] = useState("Manual");
+
+  // Chat modal state
+  const [chatLead, setChatLead] = useState<Lead | null>(null);
+  const [chatMessages, setChatMessages] = useState<LeadMessage[]>([]);
+  const [newChatMessage, setNewChatMessage] = useState("");
+  const [isFetchingChat, setIsFetchingChat] = useState(false);
 
   const handleAddLead = () => {
     startTransition(async () => {
@@ -38,30 +64,55 @@ export default function LeadBoardClient({ businessId, initialLeads }: { business
     });
   };
 
-  const handleSendAiMessage = (lead: Lead) => {
+  const handleSaveSettings = () => {
     startTransition(async () => {
-      const result = await sendAiWhatsAppMessageAction(lead.id, lead.name, lead.phone, lead.source);
+      const result = await updateBusinessPromptAction(businessId, customPrompt);
       if (result.success) {
-        setLeads(leads.map(l => l.id === lead.id ? { ...l, status: "Contacted", ai_summary: result.aiMessage! } : l));
+        setIsSettingsOpen(false);
       } else {
-        alert("Failed to send message: " + result.error);
+        alert("Failed to save prompt: " + result.error);
       }
     });
   };
 
-  const handleConfirmLead = (lead: Lead) => {
+  const openChat = async (lead: Lead) => {
+    setChatLead(lead);
+    setIsFetchingChat(true);
+    const result = await fetchLeadMessagesAction(lead.id);
+    if (result.success) {
+      setChatMessages(result.messages || []);
+    }
+    setIsFetchingChat(false);
+  };
+
+  const handleSendMessage = () => {
+    if (!chatLead || !newChatMessage.trim()) return;
+    
     startTransition(async () => {
-      const result = await sendFinalConfirmationAction(lead.id, lead.phone);
-      if (result.success) {
-        setLeads(leads.map(l => l.id === lead.id ? { ...l, status: "Confirmed" } : l));
+      const msg = newChatMessage;
+      setNewChatMessage("");
+      // Optimistic update
+      setChatMessages(prev => [...prev, {
+        id: "temp",
+        lead_id: chatLead.id,
+        sender: "business",
+        message_text: msg,
+        created_at: new Date().toISOString()
+      }]);
+
+      const result = await sendManualMessageAction(chatLead.id, chatLead.phone, msg);
+      if (!result.success) {
+        alert("Failed to send message: " + result.error);
       } else {
-        alert("Failed to confirm: " + result.error);
+        // Refresh chat
+        const fresh = await fetchLeadMessagesAction(chatLead.id);
+        if (fresh.success) setChatMessages(fresh.messages || []);
       }
     });
   };
 
   const renderLeadCard = (lead: Lead) => (
-    <div key={lead.id} className="bg-[#111] border border-white/10 rounded-xl p-5 mb-4 shadow-lg hover:border-white/20 transition-all">
+    <div key={lead.id} onClick={() => openChat(lead)} className="bg-[#111] border border-white/10 rounded-xl p-5 mb-4 shadow-lg hover:border-white/20 transition-all cursor-pointer">
       <div className="flex justify-between items-start mb-3">
         <div>
           <h4 className="text-white font-bold text-lg">{lead.name}</h4>
@@ -73,55 +124,71 @@ export default function LeadBoardClient({ businessId, initialLeads }: { business
       </div>
       
       {lead.ai_summary && (
-        <div className="bg-blue-900/20 border border-blue-500/20 rounded-lg p-3 mb-4">
-          <div className="text-[10px] font-bold text-blue-400 uppercase tracking-widest mb-1">AI Message Sent</div>
+        <div className="bg-blue-900/20 border border-blue-500/20 rounded-lg p-3 mb-2">
+          <div className="text-[10px] font-bold text-blue-400 uppercase tracking-widest mb-1">AI Context</div>
           <p className="text-gray-300 text-xs italic">"{lead.ai_summary}"</p>
         </div>
       )}
 
-      <div className="flex gap-2 mt-4">
-        {lead.status === "New" && (
-          <button 
-            onClick={() => handleSendAiMessage(lead)}
-            disabled={isPending}
-            className="flex-1 bg-green-600 hover:bg-green-500 text-white text-xs font-bold uppercase tracking-widest py-2 rounded-lg transition-colors disabled:opacity-50"
-          >
-            Auto-Reply (WA)
-          </button>
-        )}
-        {lead.status === "Contacted" && (
-          <button 
-            onClick={() => handleConfirmLead(lead)}
-            disabled={isPending}
-            className="flex-1 bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold uppercase tracking-widest py-2 rounded-lg transition-colors disabled:opacity-50"
-          >
-            Confirm Lead
-          </button>
-        )}
-        {lead.status === "Confirmed" && (
-          <div className="flex-1 text-center border border-green-500/30 bg-green-500/10 text-green-400 text-xs font-bold uppercase tracking-widest py-2 rounded-lg">
-            Closed Won
-          </div>
-        )}
+      <div className="flex gap-2 mt-2">
+        <button className="flex-1 bg-white/5 hover:bg-white/10 text-white text-xs font-bold uppercase tracking-widest py-2 rounded-lg transition-colors">
+          View Chat
+        </button>
       </div>
     </div>
   );
 
   return (
-    <div className="space-y-8 mt-12">
+    <div className="space-y-8 mt-12 relative">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-8 border-b border-white/5 pb-8">
         <div>
-          <h1 className="text-3xl font-black tracking-tight text-white mb-2">Lead Manager</h1>
+          <h1 className="text-3xl font-black tracking-tight text-white mb-2">Omnichannel CRM</h1>
           <p className="text-gray-400 text-sm">Automated WhatsApp outreach and conversion pipeline.</p>
         </div>
         
-        <button 
-          onClick={() => setIsAdding(!isAdding)}
-          className="text-xs font-bold uppercase tracking-widest px-4 py-2 bg-white/5 hover:bg-white/10 rounded-xl text-white transition-colors"
-        >
-          {isAdding ? "Cancel" : "+ Add Lead"}
-        </button>
+        <div className="flex gap-3">
+          <button 
+            onClick={() => setIsSettingsOpen(true)}
+            className="text-xs font-bold uppercase tracking-widest px-4 py-2 bg-blue-600/20 text-blue-400 hover:bg-blue-600/30 rounded-xl transition-colors"
+          >
+            AI Prompt Settings
+          </button>
+          <button 
+            onClick={() => setIsAdding(!isAdding)}
+            className="text-xs font-bold uppercase tracking-widest px-4 py-2 bg-white/5 hover:bg-white/10 rounded-xl text-white transition-colors"
+          >
+            {isAdding ? "Cancel" : "+ Add Lead"}
+          </button>
+        </div>
       </div>
+
+      {isSettingsOpen && (
+        <div className="bg-[#0a0a0a] border border-white/10 rounded-2xl p-6 mb-8 shadow-xl">
+          <h3 className="text-white font-bold mb-2">Custom AI Instructions</h3>
+          <p className="text-gray-400 text-xs mb-4">Teach the AI how to respond to your leads. E.g. "We are a car dealership. Always ask what model they are looking for."</p>
+          <textarea 
+            value={customPrompt}
+            onChange={(e) => setCustomPrompt(e.target.value)}
+            className="w-full bg-transparent border border-white/10 rounded-lg px-4 py-3 text-white outline-none focus:border-blue-500 min-h-[120px] mb-4"
+            placeholder="Your custom instructions..."
+          />
+          <div className="flex gap-3">
+            <button 
+              onClick={handleSaveSettings}
+              disabled={isPending}
+              className="bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold uppercase tracking-widest px-6 py-2 rounded-lg transition-colors disabled:opacity-50"
+            >
+              Save Instructions
+            </button>
+            <button 
+              onClick={() => setIsSettingsOpen(false)}
+              className="bg-white/5 hover:bg-white/10 text-white text-xs font-bold uppercase tracking-widest px-6 py-2 rounded-lg transition-colors"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
 
       {isAdding && (
         <div className="bg-[#0a0a0a] border border-white/10 rounded-2xl p-6 mb-8">
@@ -176,7 +243,7 @@ export default function LeadBoardClient({ businessId, initialLeads }: { business
         {/* CONTACTED */}
         <div className="bg-[#0a0a0a] border border-white/5 rounded-2xl p-4 min-h-[500px]">
           <div className="flex items-center justify-between mb-6">
-            <h3 className="text-blue-400 font-bold uppercase tracking-widest text-xs">Contacted</h3>
+            <h3 className="text-blue-400 font-bold uppercase tracking-widest text-xs">AI Chatting</h3>
             <span className="bg-blue-500/20 text-blue-400 text-[10px] px-2 py-0.5 rounded-full">{leads.filter(l => l.status === "Contacted").length}</span>
           </div>
           <div className="space-y-4">
@@ -187,7 +254,7 @@ export default function LeadBoardClient({ businessId, initialLeads }: { business
         {/* CONFIRMED */}
         <div className="bg-[#0a0a0a] border border-white/5 rounded-2xl p-4 min-h-[500px]">
           <div className="flex items-center justify-between mb-6">
-            <h3 className="text-green-400 font-bold uppercase tracking-widest text-xs">Confirmed</h3>
+            <h3 className="text-green-400 font-bold uppercase tracking-widest text-xs">Confirmed Deals</h3>
             <span className="bg-green-500/20 text-green-400 text-[10px] px-2 py-0.5 rounded-full">{leads.filter(l => l.status === "Confirmed").length}</span>
           </div>
           <div className="space-y-4">
@@ -195,6 +262,64 @@ export default function LeadBoardClient({ businessId, initialLeads }: { business
           </div>
         </div>
       </div>
+
+      {/* CHAT MODAL */}
+      {chatLead && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+          <div className="bg-[#0a0a0a] border border-white/10 rounded-2xl w-full max-w-2xl flex flex-col h-[80vh] shadow-2xl overflow-hidden">
+            <div className="p-4 border-b border-white/10 flex justify-between items-center bg-[#111]">
+              <div>
+                <h3 className="text-white font-bold">{chatLead.name}</h3>
+                <p className="text-gray-400 text-xs">{chatLead.phone} • {chatLead.status}</p>
+              </div>
+              <button onClick={() => setChatLead(null)} className="text-gray-400 hover:text-white p-2">✕</button>
+            </div>
+            
+            <div className="flex-1 overflow-y-auto p-4 space-y-4">
+              {isFetchingChat ? (
+                <p className="text-center text-gray-500 text-sm mt-10 animate-pulse">Loading chat history...</p>
+              ) : chatMessages.length === 0 ? (
+                <p className="text-center text-gray-500 text-sm mt-10">No messages yet. Send a message to start the conversation.</p>
+              ) : (
+                chatMessages.map((msg, i) => (
+                  <div key={i} className={`flex ${msg.sender === "user" ? "justify-start" : "justify-end"}`}>
+                    <div className={`max-w-[70%] rounded-2xl p-3 ${
+                      msg.sender === "user" 
+                        ? "bg-white/10 text-white rounded-tl-sm" 
+                        : msg.sender === "ai" 
+                          ? "bg-blue-600/20 border border-blue-500/30 text-blue-100 rounded-tr-sm" 
+                          : "bg-green-600/20 border border-green-500/30 text-green-100 rounded-tr-sm"
+                    }`}>
+                      <div className="text-[9px] font-bold uppercase tracking-wider mb-1 opacity-50">
+                        {msg.sender === "ai" ? "AI Auto-Reply" : msg.sender === "business" ? "You" : "Client"}
+                      </div>
+                      <p className="text-sm whitespace-pre-wrap">{msg.message_text}</p>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+
+            <div className="p-4 border-t border-white/10 bg-[#111] flex gap-2">
+              <input 
+                type="text" 
+                value={newChatMessage}
+                onChange={(e) => setNewChatMessage(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && handleSendMessage()}
+                placeholder="Type a manual reply..." 
+                className="flex-1 bg-black border border-white/10 rounded-xl px-4 py-3 text-white outline-none focus:border-blue-500"
+              />
+              <button 
+                onClick={handleSendMessage}
+                disabled={isPending || !newChatMessage.trim()}
+                className="bg-blue-600 hover:bg-blue-500 text-white px-6 rounded-xl font-bold transition-colors disabled:opacity-50"
+              >
+                Send
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
